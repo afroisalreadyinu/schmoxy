@@ -1,7 +1,7 @@
 import os
 from setuptools import setup, find_packages
 
-dependencies = ['flask', 'pyquery']
+dependencies = ['Flask', 'pyquery', 'requests', 'BeautifulSoup']
 
 setup(
     name = "schmoxy",
