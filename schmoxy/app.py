@@ -1,5 +1,7 @@
 import os
 from urlparse import urljoin
+import base64
+
 from flask import (Flask, g,
                    abort,
                    render_template,
@@ -15,20 +17,28 @@ app.config.from_pyfile(os.path.abspath(os.path.join(__file__,
                                                     '../configs/config.cfg')))
 urls = BiDict()
 
-def fetch_index():
+
+def get_resource(cache_dir, url):
+    """Return a resource (text or binary) from cache or download,
+    cache and return"""
+    filename = base64.b64encode(url, '+_')
     try:
-        with open(os.path.join(app.config['CACHE_PATH'],
-                               'index'), 'r') as cached:
+        with open(os.path.join(cache_dir,filename), 'r') as cached:
             page_content = cached.read()
     except IOError:
-        page = requests.get(app.config['PROXY_ORIGIN'])
-        page_content = replace_references(page.text,
-                                          app.config['PROXY_ORIGIN'],
-                                          urls,
-                                          app.config['SERVER_NAME'])
-        with open(os.path.join(app.config['CACHE_PATH'],
-                               'index'), 'w') as cached:
-            cached.write(page_content.encode('utf-8'))
+        page = requests.get(url)
+        if page.headers['content-type'].startswith('text/html'):
+            page_content = replace_references(page.text,
+                                              app.config['PROXY_ORIGIN'],
+                                              urls,
+                                              app.config['SERVER_NAME'])
+            with open(os.path.join(cache_dir, filename), 'w') as cached:
+                cached.write(page_content.encode('utf-8'))
+        elif page.headers['content-type'].startswith('image'):
+            page_content = page.content
+            with open(os.path.join(cache_dir, filename), 'wb') as cached:
+                cached.write(page_content)
+
     return page_content
 
 
@@ -36,11 +46,12 @@ def fetch_index():
 @app.route('/<path:path>')
 def index(path):
     if not path:
-        return fetch_index()
+        return get_resource(app.config['PROXY_ORIGIN'])
 
-    real_path = "http://%s/%s" % (app.config['SERVER_NAME'], path)
+    local_path = "http://%s/%s" % (app.config['SERVER_NAME'], path)
+    data = get_resource(urls[local_path])
     try:
-        resp = requests.get(urljoin(app.config['PROXY_ORIGIN'], urls[real_path]))
+        resp = requests.get(urljoin(app.config['PROXY_ORIGIN'], ))
     except KeyError:
         abort(404)
     if resp.status_code != 200:

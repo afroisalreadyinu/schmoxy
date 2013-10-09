@@ -1,5 +1,5 @@
-from schmoxy.app import app
+from schmoxy.app import app as application
 
 
 def runit():
-    app.run()
+    application.run()
