@@ -3,7 +3,7 @@ import unittest
 import tempfile
 import uuid
 import base64
-
+import json
 import mock
 from bunch import Bunch
 from schmoxy import util, doc_processor, app
@@ -48,34 +48,57 @@ class DocProcessorTests(unittest.TestCase):
         self.failUnlessEqual(urls['http://new.com/blah/yada.jpg'],
                              'http://otherpage.net/blah/yada.jpg')
 
-class GetResourceTests(unittest.TestCase):
+class ResourceCacheTests(unittest.TestCase):
 
     def setUp(self):
         self.cache_dir = tempfile.mkdtemp()
+        self.resource_cache = app.ResourceCache(self.cache_dir, '','')
 
     @mock.patch('requests.get')
     def test_new_file_cached_returned(self, mock_get):
         mock_response =  Bunch(text=str(uuid.uuid4()),
-                               headers={'content-type':'text/html'})
+                               headers={'content-type':'text/html',
+                                        'arbitrary-key':'value'})
         url = 'http://example.com'
         mock_get.return_value = mock_response
-        return_val = app.get_resource(self.cache_dir, url)
+        headers,content = self.resource_cache.get_resource(url)
+
         self.failUnless(mock_get.called_once_with(url))
-        self.failUnlessEqual(return_val, mock_response.text)
+        self.failUnlessEqual(content, mock_response.text)
         filename = base64.b64encode(url, '+_')
         filepath = os.path.join(self.cache_dir, filename)
         self.failUnless(os.path.exists(filepath))
         with open(filepath, 'r') as cache_file:
-            self.failUnlessEqual(cache_file.read(), mock_response.text)
+            self.failUnless(cache_file.read().endswith(mock_response.text))
+
+        self.failUnlessEqual(headers['content-type'], 'text/html')
+        self.failUnlessEqual(headers['arbitrary-key'], 'value')
 
 
     def test_cache_returned_if_exists(self):
         url = 'http://blah.com'
         encoded = base64.b64encode(url, '+_')
         text = str(uuid.uuid4())
+        headers = json.dumps(dict(yada='etc'))
         with open(os.path.join(self.cache_dir, encoded), 'w') as outfile:
+            outfile.write("%d%s" % (len(headers), headers))
             outfile.write(text)
-        self.failUnlessEqual(app.get_resource(self.cache_dir, url), text)
+        headers, content = self.resource_cache.get_resource(url)
+        self.failUnlessEqual(content, text)
+
+
+    @mock.patch('requests.get')
+    def test_binary_resource(self, mock_get):
+        with open('sample.gif', 'rb') as sample_gif:
+            content = sample_gif.read()
+        headers = {'content-length': '3305', 'content-type': 'image/gif'}
+        mock_response = Bunch(content=content, headers=headers)
+        mock_get.return_value = mock_response
+
+        return_headers, content = self.resource_cache.get_resource('http://example.com')
+        self.failUnlessEqual(content, content)
+        self.failUnlessEqual(headers, return_headers)
+
 
 
 if __name__ == "__main__":
