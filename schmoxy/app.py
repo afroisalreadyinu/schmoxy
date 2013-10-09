@@ -26,7 +26,7 @@ class ResourceCache(object):
         self.server_name = server_name
 
     def format_headers(self, headers):
-        dump = json.dumps(headers)
+        dump = json.dumps(dict(headers))
         return "%d%s" % (len(dump), dump)
 
 
@@ -66,16 +66,24 @@ class ResourceCache(object):
 
         return headers, page_content
 
+@app.before_request
+def before_request():
+    g.resource_cache = ResourceCache(app.config['CACHE_PATH'],
+                                     app.config['PROXY_ORIGIN'],
+                                     app.config['SERVER_NAME'])
+
+TO_BE_COPIED = ['content-length', 'content-type']
 
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def index(path):
     if not path:
-        return get_resource(app.config['PROXY_ORIGIN'])
-
-    local_path = "http://%s/%s" % (app.config['SERVER_NAME'], path)
-    data = get_resource(urls[local_path])
-    response = make_response(resp.content)
-    response.headers['content-length'] = response.headers['content-length']
-    response.headers['content-type'] = response.headers['content-type']
+        headers, content = g.resource_cache.get_resource(app.config['PROXY_ORIGIN'])
+    else:
+        local_path = "http://%s/%s" % (app.config['SERVER_NAME'], path)
+        headers, content = g.resource_cache.get_resource(urls[local_path])
+    response = make_response(content)
+    for key in TO_BE_COPIED:
+        if key in headers:
+            response.headers[key] = headers[key]
     return response
