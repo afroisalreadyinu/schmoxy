@@ -13,7 +13,7 @@ import requests
 from schmoxy.util import BiDict
 from schmoxy.doc_processor import replace_references
 
-app = Flask('adana')
+app = Flask('adana', static_url_path='/justdontservethosefilesreally')
 app.config.from_pyfile(os.path.abspath(os.path.join(__file__,
                                                     '../configs/config.cfg')))
 urls = BiDict()
@@ -54,8 +54,9 @@ class ResourceCache(object):
                                                   urls,
                                                   self.server_name)
 
-            elif page.headers['content-type'].startswith('image'):
+            else:
                 page_content = page.content
+
             with open(os.path.join(self.cache_dir, filename), 'w') as cached:
                 cached.write(self.format_headers(page.headers))
                 out_content = (page_content.encode('utf-8')
@@ -81,7 +82,10 @@ def index(path):
         headers, content = g.resource_cache.get_resource(app.config['PROXY_ORIGIN'])
     else:
         local_path = "http://%s/%s" % (app.config['SERVER_NAME'], path)
-        headers, content = g.resource_cache.get_resource(urls[local_path])
+        try:
+            headers, content = g.resource_cache.get_resource(urls[local_path])
+        except KeyError:
+            abort(404)
     response = make_response(content)
     for key in TO_BE_COPIED:
         if key in headers:
