@@ -2,6 +2,7 @@ import os
 from urlparse import urljoin
 import base64
 import json
+import codecs
 
 from flask import (Flask, g,
                    abort,
@@ -20,10 +21,11 @@ urls = BiDict()
 
 class ResourceCache(object):
 
-    def __init__(self, cache_dir, origin, server_name):
+    def __init__(self, cache_dir, origin, server_name, excluded_js):
         self.cache_dir = cache_dir
         self.origin = origin
         self.server_name = server_name
+        self.excluded_js = excluded_js
 
     def format_headers(self, headers):
         dump = json.dumps(dict(headers))
@@ -52,26 +54,30 @@ class ResourceCache(object):
                 page_content = replace_references(page.text,
                                                   self.origin,
                                                   urls,
-                                                  self.server_name)
+                                                  self.server_name,
+                                                  self.excluded_js)
 
             else:
                 page_content = page.content
-
-            with open(os.path.join(self.cache_dir, filename), 'w') as cached:
-                cached.write(self.format_headers(page.headers))
-                out_content = (page_content.encode('utf-8')
-                               if page.headers['content-type'].startswith('text')
-                               else page_content)
-                cached.write(out_content)
+            filepath = os.path.join(self.cache_dir, filename)
+            if page.headers['content-type'].startswith('text'):
+                if not isinstance(page_content, unicode):
+                    page_content = unicode(page_content, 'utf-8', 'ignore')
+                cached = codecs.open(filepath, 'w', encoding='utf-8')
+                page.headers['content-length'] = len(page_content)
+            else:
+                cached = open(filepath, 'wb')
+            cached.write(self.format_headers(page.headers))
+            cached.write(page_content)
             headers = page.headers
-
         return headers, page_content
 
 @app.before_request
 def before_request():
     g.resource_cache = ResourceCache(app.config['CACHE_PATH'],
                                      app.config['PROXY_ORIGIN'],
-                                     app.config['SERVER_NAME'])
+                                     app.config['SERVER_NAME'],
+                                     app.config['EXCLUDE_JS'])
 
 TO_BE_COPIED = ['content-length', 'content-type']
 
@@ -85,7 +91,9 @@ def index(path):
         try:
             headers, content = g.resource_cache.get_resource(urls[local_path])
         except KeyError:
-            abort(404)
+            url = urljoin(app.config['PROXY_ORIGIN'], path)
+            headers, content = g.resource_cache.get_resource(url)
+            urls[local_path] = url
     response = make_response(content)
     for key in TO_BE_COPIED:
         if key in headers:

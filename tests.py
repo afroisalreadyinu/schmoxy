@@ -4,8 +4,11 @@ import tempfile
 import uuid
 import base64
 import json
+
 import mock
 from bunch import Bunch
+from BeautifulSoup import BeautifulSoup
+
 from schmoxy import util, doc_processor, app
 
 class UtilTests(unittest.TestCase):
@@ -16,10 +19,46 @@ class UtilTests(unittest.TestCase):
         self.failUnlessEqual(bi_dict[0], 'something')
         self.failUnlessEqual(bi_dict['something'], 0)
 
+    def test_regexp_js_with_src_match(self):
+        js_with_src = Bunch(src='http://example.com/blah/yada.js')
+        self.failUnless(doc_processor.regexp_matches_js(js_with_src,
+                                                        'http://example.com/blah/yada.js'))
+        self.failUnless(doc_processor.regexp_matches_js(js_with_src,
+                                                        'http://example.com/bl\w*/yada.js'))
+        self.failIf(doc_processor.regexp_matches_js(js_with_src,
+                                                    'schmexample.com/blah/yada.js'))
+        self.failIf(doc_processor.regexp_matches_js(js_with_src,
+                                                    'schmexample.com/.*js'))
+
+    def test_regexp_js_with_text_match(self):
+        js_with_txt = Bunch(text='what is this 1234 i dont even')
+        self.failUnless(doc_processor.regexp_matches_js(js_with_txt,
+                                                        'is this'))
+        self.failUnless(doc_processor.regexp_matches_js(js_with_txt,
+                                                        'this \d* i'))
+        self.failIf(doc_processor.regexp_matches_js(js_with_txt,
+                                                    'when'))
+
+
+
+
 img_src_doc = """
 <html><body>
 Blah blah etc
 <img src="%(src)s" />
+</body></html>
+"""
+
+css_href_doc = """
+<html><body>
+<link rel="stylesheet" type="text/css" href="%(href)s" />
+</body></html>
+"""
+
+js_exclude_doc = """
+<html><body>
+<script type="text/javascript">some_obj.afun('');</script>
+<script type="text/javascript" src="http://external.source.com/ahaha.js"></script>
 </body></html>
 """
 
@@ -48,6 +87,37 @@ class DocProcessorTests(unittest.TestCase):
         self.failUnlessEqual(urls['http://new.com/blah/yada.jpg'],
                              'http://otherpage.net/blah/yada.jpg')
 
+    def test_css_href_absolute(self):
+        doc = css_href_doc % dict(href="http://otherpage.net/blah/yada.css")
+        urls = util.BiDict()
+        new_doc = doc_processor.replace_references(doc, "http://example.com",
+                                                   urls, "http://new.com")
+        self.failUnless('href="http://new.com/blah/yada.css"' in new_doc)
+        self.failUnlessEqual(urls['http://new.com/blah/yada.css'],
+                             'http://otherpage.net/blah/yada.css')
+
+    def test_exlude_js_content(self):
+        urls = util.BiDict()
+        excluded_js = [".*afun\(''\)"]
+        new_doc = doc_processor.replace_references(js_exclude_doc, "http://example.com",
+                                                   urls, "http://new.com", excluded_js)
+        soup = BeautifulSoup(new_doc)
+        scripts = soup.findAll('script')
+        self.failUnlessEqual(len(scripts), 1)
+        self.failUnlessEqual(scripts[0]['src'], "http://new.com/ahaha.js")
+
+
+    def test_exlude_js_src(self):
+        urls = util.BiDict()
+        excluded_js = ["external\.\w*\.com/[ah]*\.js"]
+        new_doc = doc_processor.replace_references(js_exclude_doc, "http://example.com",
+                                                   urls, "http://new.com", excluded_js)
+        soup = BeautifulSoup(new_doc)
+        scripts = soup.findAll('script')
+        self.failUnlessEqual(len(scripts), 1)
+        self.failUnless('some_obj.afun' in scripts[0].text)
+
+
 class ResourceCacheTests(unittest.TestCase):
 
     def setUp(self):
@@ -58,7 +128,8 @@ class ResourceCacheTests(unittest.TestCase):
     def test_new_file_cached_returned(self, mock_get):
         mock_response =  Bunch(text=str(uuid.uuid4()),
                                headers={'content-type':'text/html',
-                                        'arbitrary-key':'value'})
+                                        'arbitrary-key':'value'},
+                               status_code=200)
         url = 'http://example.com'
         mock_get.return_value = mock_response
         headers,content = self.resource_cache.get_resource(url)
@@ -92,7 +163,7 @@ class ResourceCacheTests(unittest.TestCase):
         with open('sample.gif', 'rb') as sample_gif:
             content = sample_gif.read()
         headers = {'content-length': '3305', 'content-type': 'image/gif'}
-        mock_response = Bunch(content=content, headers=headers)
+        mock_response = Bunch(content=content, headers=headers, status_code=200)
         mock_get.return_value = mock_response
 
         return_headers, content = self.resource_cache.get_resource('http://example.com')
