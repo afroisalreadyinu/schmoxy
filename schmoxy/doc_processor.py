@@ -2,6 +2,7 @@ import re
 from urlparse import urlparse, urljoin, ParseResult
 from BeautifulSoup import BeautifulSoup
 
+
 def local_to_remote(src, origin, server_name, urls_dict):
     if not urlparse(src).netloc:
         #we want the absolute url so that it can be downloaded later
@@ -20,6 +21,7 @@ def local_to_remote(src, origin, server_name, urls_dict):
                               src.path, src.params, src.query, src.fragment).geturl()
         urls_dict[src.geturl()] = new_src
     return new_src
+
 
 def regexp_matches_js(script_node, js_regexp):
     if script_node.has_key('src'):
