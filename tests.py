@@ -62,6 +62,18 @@ js_exclude_doc = """
 </body></html>
 """
 
+cdata_escape_doc = """
+<html>
+<script type="text/javascript">
+<!--//--><![CDATA[//><!--
+alert('blah');
+//--><!]]>
+</script>
+<body></body></html>
+"""
+
+bare_body = "<html>%s</html>"
+
 class DocProcessorTests(unittest.TestCase):
 
     def test_img_src_relative(self):
@@ -117,16 +129,20 @@ class DocProcessorTests(unittest.TestCase):
         self.failUnlessEqual(len(scripts), 1)
         self.failUnless('some_obj.afun' in scripts[0].text)
 
+    def test_cdata_escape(self):
+        new_doc = doc_processor.replace_references(cdata_escape_doc, "http://example.com",
+                                                   util.BiDict(), "http://new.com")
+        self.failUnless("<!--//--><![CDATA[//><!--" in new_doc)
 
 class ResourceCacheTests(unittest.TestCase):
 
     def setUp(self):
         self.cache_dir = tempfile.mkdtemp()
-        self.resource_cache = app.ResourceCache(self.cache_dir, '','')
+        self.resource_cache = app.ResourceCache(self.cache_dir, '','', [])
 
     @mock.patch('requests.get')
     def test_new_file_cached_returned(self, mock_get):
-        mock_response =  Bunch(text=str(uuid.uuid4()),
+        mock_response =  Bunch(text=bare_body % str(uuid.uuid4()),
                                headers={'content-type':'text/html',
                                         'arbitrary-key':'value'},
                                status_code=200)
