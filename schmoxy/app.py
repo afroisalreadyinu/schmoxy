@@ -56,11 +56,12 @@ class ResourceCache(object):
                                                   urls,
                                                   self.server_name,
                                                   self.excluded_js)
-
             else:
                 page_content = page.content
             filepath = os.path.join(self.cache_dir, filename)
-            if page.headers['content-type'].startswith('text'):
+            content_type = page.headers['content-type']
+            if (content_type.startswith('text') or
+                content_type in ['application/javascript']):
                 if not isinstance(page_content, unicode):
                     page_content = unicode(page_content, 'utf-8', 'ignore')
                 cached = codecs.open(filepath, 'w', encoding='utf-8')
