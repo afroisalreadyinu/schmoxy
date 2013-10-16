@@ -19,6 +19,16 @@ app.config.from_pyfile(os.path.abspath(os.path.join(__file__,
                                                     '../configs/config.cfg')))
 urls = BiDict()
 
+def is_int(thing):
+    try:
+        int(thing)
+    except ValueError:
+        return False
+    return True
+
+class SchmoxyRetrieveError(Exception):
+    pass
+
 class ResourceCache(object):
 
     def __init__(self, cache_dir, origin, server_name, excluded_js):
@@ -35,6 +45,8 @@ class ResourceCache(object):
     def read_file(self, path):
         with open(path, 'r') as cached:
             content = cached.read()
+            if is_int(content):
+                return None, int(content)
             header_length = content[:7].split('{')[0]
             header_json = content[len(header_length):len(header_length) + int(header_length)]
             headers = json.loads(header_json)
@@ -50,6 +62,10 @@ class ResourceCache(object):
                                                                 filename))
         except IOError:
             page = requests.get(url)
+            if page.status_code > 400:
+                with open(os.path.join(self.cache_dir, filename), 'w') as out_file:
+                    out_file.write(str(page.status_code))
+                return None, page.status_code
             if page.headers['content-type'].startswith('text/html'):
                 page_content = replace_references(page.text,
                                                   self.origin,
@@ -70,6 +86,7 @@ class ResourceCache(object):
                 cached = open(filepath, 'wb')
             cached.write(self.format_headers(page.headers))
             cached.write(page_content)
+            cached.close()
             headers = page.headers
         return headers, page_content
 
@@ -96,6 +113,8 @@ def index(path):
             url = urljoin(app.config['PROXY_ORIGIN'], path)
             headers, content = g.resource_cache.get_resource(url)
             urls[local_path] = url
+    if not headers and is_int(content):
+        abort(content)
     response = make_response(content)
     for key in TO_BE_COPIED:
         if key in headers:
