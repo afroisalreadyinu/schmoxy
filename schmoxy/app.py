@@ -73,6 +73,7 @@ class ResourceCache(object):
             headers = page.headers
         return headers, page_content
 
+
 @app.before_request
 def before_request():
     g.resource_cache = ResourceCache(app.config['CACHE_PATH'],
