@@ -11,6 +11,10 @@ from BeautifulSoup import BeautifulSoup
 
 from schmoxy import util, doc_processor, app
 
+class MockNode(Bunch):
+    def has_attr(self, *args, **kwargs):
+        return self.has_key(*args, **kwargs)
+
 class UtilTests(unittest.TestCase):
 
     def test_bi_dict(self):
@@ -20,7 +24,7 @@ class UtilTests(unittest.TestCase):
         self.failUnlessEqual(bi_dict['something'], 0)
 
     def test_regexp_js_with_src_match(self):
-        js_with_src = Bunch(src='http://example.com/blah/yada.js')
+        js_with_src = MockNode(src='http://example.com/blah/yada.js')
         self.failUnless(doc_processor.regexp_matches_js(js_with_src,
                                                         'http://example.com/blah/yada.js'))
         self.failUnless(doc_processor.regexp_matches_js(js_with_src,
@@ -31,7 +35,7 @@ class UtilTests(unittest.TestCase):
                                                     'schmexample.com/.*js'))
 
     def test_regexp_js_with_text_match(self):
-        js_with_txt = Bunch(text='what is this 1234 i dont even')
+        js_with_txt = MockNode(text='what is this 1234 i dont even')
         self.failUnless(doc_processor.regexp_matches_js(js_with_txt,
                                                         'is this'))
         self.failUnless(doc_processor.regexp_matches_js(js_with_txt,

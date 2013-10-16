@@ -24,7 +24,7 @@ def local_to_remote(src, origin, server_name, urls_dict):
 
 
 def regexp_matches_js(script_node, js_regexp):
-    if script_node.has_key('src'):
+    if script_node.has_attr('src'):
         return bool(re.search(js_regexp, script_node['src']))
     return bool(re.search(js_regexp, script_node.text))
 
@@ -42,7 +42,7 @@ def replace_references(page_text, source_url, urls_dict, server_name, excluded_j
                                 for regexp in excluded_js):
             script.extract()
 
-    for script in [x for x in soup.find_all('script') if x.has_key('src')]:
+    for script in [x for x in soup.find_all('script') if x.has_attr('src')]:
         script['src'] = local_to_remote(script['src'], source_url,
                                         server_name, urls_dict)
     return unicode(soup)
