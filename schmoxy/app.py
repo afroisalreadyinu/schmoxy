@@ -17,6 +17,10 @@ from schmoxy.doc_processor import replace_references
 app = Flask('adana', static_url_path='/justdontservethosefilesreally')
 app.config.from_pyfile(os.path.abspath(os.path.join(__file__,
                                                     '../configs/config.cfg')))
+
+assert(app.config['SERVER_NAME'].startswith('http://'),
+       "Please make sure the server name starts with http://")
+
 urls = BiDict()
 
 def is_int(thing):
@@ -67,7 +71,7 @@ class ResourceCache(object):
                     out_file.write(str(page.status_code))
                 return None, page.status_code
             if page.headers['content-type'].startswith('text/html'):
-                page_content = replace_references(page.text,
+                page_content = replace_references(page.content,
                                                   self.origin,
                                                   urls,
                                                   self.server_name,

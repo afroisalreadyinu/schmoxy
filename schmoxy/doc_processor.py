@@ -1,25 +1,20 @@
 import re
-from urlparse import urlparse, urljoin, ParseResult
 from bs4 import BeautifulSoup
+from furl import furl
 
 
 def local_to_remote(src, origin, server_name, urls_dict):
-    if not urlparse(src).netloc:
-        #we want the absolute url so that it can be downloaded later
-        src = urlparse(urljoin(origin, src))
-    else:
-        src = urlparse(src)
+    if not src.scheme:
+        src.scheme = origin.scheme
+    if not src.netloc:
+        src.netloc = origin.netloc
     try:
-        new_src = urls_dict[src.geturl()]
+        new_src = urls_dict[src.url]
     except KeyError:
-        scheme = ('http' if '//' not in server_name
-                  else server_name.split('//')[0][:-1])
-        server_name = (server_name.split('//')[1] if '//' in server_name
-                       else server_name)
-        new_src = ParseResult(scheme,
-                              server_name,
-                              src.path, src.params, src.query, src.fragment).geturl()
-        urls_dict[src.geturl()] = new_src
+        new_src = src.copy()
+        new_src.scheme = 'http'
+        new_src.netloc = server_name.netloc
+        urls_dict[src.url] = new_src.url
     return new_src
 
 
@@ -30,12 +25,15 @@ def regexp_matches_js(script_node, js_regexp):
 
 
 def replace_references(page_text, source_url, urls_dict, server_name, excluded_js=None):
+    source_url = furl(source_url)
+    server_name = furl(server_name)
+
     soup = BeautifulSoup(page_text, 'html.parser')
     for img in soup.find_all('img'):
-        img['src'] = local_to_remote(img['src'], source_url,
+        img['src'] = local_to_remote(furl(img['src']), source_url,
                                      server_name, urls_dict)
     for css in [x for x in soup.find_all('link') if x['rel'] == ['stylesheet']]:
-        css['href'] = local_to_remote(css['href'], source_url,
+        css['href'] = local_to_remote(furl(css['href']), source_url,
                                       server_name, urls_dict)
     for script in soup.find_all('script'):
         if excluded_js and  any(regexp_matches_js(script, regexp)
@@ -43,6 +41,6 @@ def replace_references(page_text, source_url, urls_dict, server_name, excluded_j
             script.extract()
 
     for script in [x for x in soup.find_all('script') if x.has_attr('src')]:
-        script['src'] = local_to_remote(script['src'], source_url,
+        script['src'] = local_to_remote(furl(script['src']), source_url,
                                         server_name, urls_dict)
     return unicode(soup)

@@ -7,7 +7,7 @@ import json
 
 import mock
 from bunch import Bunch
-from BeautifulSoup import BeautifulSoup
+from bs4 import BeautifulSoup
 
 from schmoxy import util, doc_processor, app
 
@@ -146,7 +146,7 @@ class ResourceCacheTests(unittest.TestCase):
 
     @mock.patch('requests.get')
     def test_new_file_cached_returned(self, mock_get):
-        mock_response =  Bunch(text=bare_body % str(uuid.uuid4()),
+        mock_response =  Bunch(content=bare_body % str(uuid.uuid4()),
                                headers={'content-type':'text/html',
                                         'arbitrary-key':'value'},
                                status_code=200)
@@ -155,12 +155,12 @@ class ResourceCacheTests(unittest.TestCase):
         headers,content = self.resource_cache.get_resource(url)
 
         self.failUnless(mock_get.called_once_with(url))
-        self.failUnlessEqual(content, mock_response.text)
+        self.failUnlessEqual(content, mock_response.content)
         filename = base64.b64encode(url, '+_')
         filepath = os.path.join(self.cache_dir, filename)
         self.failUnless(os.path.exists(filepath))
         with open(filepath, 'r') as cache_file:
-            self.failUnless(cache_file.read().endswith(mock_response.text))
+            self.failUnless(cache_file.read().endswith(mock_response.content))
 
         self.failUnlessEqual(headers['content-type'], 'text/html')
         self.failUnlessEqual(headers['arbitrary-key'], 'value')
@@ -189,6 +189,14 @@ class ResourceCacheTests(unittest.TestCase):
         return_headers, content = self.resource_cache.get_resource('http://example.com')
         self.failUnlessEqual(content, content)
         self.failUnlessEqual(headers, return_headers)
+
+    @mock.patch('requests.get')
+    def test_document_with_error(self, mock_get):
+        mock_response = Bunch(content='', status_code=404)
+        mock_get.return_value = mock_response
+        headers, content = self.resource_cache.get_resource('http://example.com')
+        self.failUnless(headers is None)
+        self.failUnlessEqual(content, 404)
 
 
 
