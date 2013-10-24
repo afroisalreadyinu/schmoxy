@@ -26,9 +26,10 @@ def regexp_matches_js(script_node, js_regexp):
 
 def replace_references(page_text, source_url, urls_dict, server_name, excluded_js=None):
     source_url = furl(source_url)
-    server_name = furl(server_name)
+    server_name = (furl(server_name) if server_name.startswith('http://')
+                   else furl('http://' + server_name))
 
-    soup = BeautifulSoup(page_text, 'html.parser')
+    soup = BeautifulSoup(page_text)
     for img in soup.find_all('img'):
         img['src'] = local_to_remote(furl(img['src']), source_url,
                                      server_name, urls_dict)
