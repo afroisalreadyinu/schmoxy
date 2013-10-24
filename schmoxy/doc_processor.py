@@ -45,3 +45,11 @@ def replace_references(page_text, source_url, urls_dict, server_name, excluded_j
         script['src'] = local_to_remote(furl(script['src']), source_url,
                                         server_name, urls_dict)
     return unicode(soup)
+
+def replace_content(content, replacement_list):
+    soup = BeautifulSoup(content)
+    for selector, new_content in replacement_list:
+        element = soup.select(selector)
+        new_tag = BeautifulSoup(new_content)
+        element[0].replace_with(new_tag.body.next)
+    return unicode(soup)

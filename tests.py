@@ -198,6 +198,25 @@ class ResourceCacheTests(unittest.TestCase):
         self.failUnless(headers is None)
         self.failUnlessEqual(content, 404)
 
+replacement_doc = """
+<html><body>
+<div class="leave-alone">%s</div>
+<div class="to-be-replaced">%s</div>
+</body></html>
+"""
+
+class ReplaceContentTests(unittest.TestCase):
+
+    def test_simple_replacement(self):
+        leave_alone, to_be_replaced = str(uuid.uuid4()), str(uuid.uuid4())
+        doc = replacement_doc % (leave_alone, to_be_replaced)
+        new_element = "<p>%s</p>" % str(uuid.uuid4())
+        new_doc = doc_processor.replace_content(doc,
+                                                [('div.to-be-replaced', new_element)])
+        self.failUnless(leave_alone in new_doc)
+        self.failIf(to_be_replaced in new_doc)
+        self.failUnless(new_element in new_doc)
+
 
 
 if __name__ == "__main__":

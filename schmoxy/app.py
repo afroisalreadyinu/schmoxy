@@ -12,9 +12,10 @@ from flask import (Flask, g,
                    make_response)
 import requests
 from schmoxy.util import BiDict
-from schmoxy.doc_processor import replace_references
+from schmoxy.doc_processor import replace_references, replace_content
 
-app = Flask('adana', static_url_path='/justdontservethosefilesreally')
+app = Flask('adana',
+            static_url_path='/justdontservethosefilesreallynoiseriuouslklajsdlkymeanit')
 app.config.from_pyfile(os.path.abspath(os.path.join(__file__,
                                                     '../configs/config.cfg')))
 
@@ -93,7 +94,6 @@ class ResourceCache(object):
             headers = page.headers
         return headers, page_content
 
-
 @app.before_request
 def before_request():
     g.resource_cache = ResourceCache(app.config['CACHE_PATH'],
@@ -119,6 +119,9 @@ def index(path):
     if not headers and is_int(content):
         abort(content)
     #TODO do this more sensibly
+    if (app.config.get('REPLACE_CONTENT') and
+        headers.get('content-type', '').startswith('text/html')):
+        content = replace_content(content, app.config['REPLACE_CONTENT'])
     if text_content(headers.get('content-type', '')):
         headers['content-length'] = len(content)
     response = make_response(content)
