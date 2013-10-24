@@ -76,7 +76,7 @@ alert('blah');
 <body></body></html>
 """
 
-bare_body = "<html>%s</html>"
+bare_body = "<html><body>%s</body></html>"
 
 class DocProcessorTests(unittest.TestCase):
 
