@@ -27,6 +27,10 @@ def is_int(thing):
         return False
     return True
 
+def text_content(content_type):
+    return (content_type.startswith('text') or
+            content_type in ['application/javascript'])
+
 class SchmoxyRetrieveError(Exception):
     pass
 
@@ -76,9 +80,7 @@ class ResourceCache(object):
             else:
                 page_content = page.content
             filepath = os.path.join(self.cache_dir, filename)
-            content_type = page.headers['content-type']
-            if (content_type.startswith('text') or
-                content_type in ['application/javascript']):
+            if text_content(page.headers['content-type']):
                 if not isinstance(page_content, unicode):
                     page_content = unicode(page_content, 'utf-8', 'ignore')
                 cached = codecs.open(filepath, 'w', encoding='utf-8')
@@ -116,6 +118,9 @@ def index(path):
             urls[local_path] = url
     if not headers and is_int(content):
         abort(content)
+    #TODO do this more sensibly
+    if text_content(headers.get('content-type', '')):
+        headers['content-length'] = len(content)
     response = make_response(content)
     for key in TO_BE_COPIED:
         if key in headers:
