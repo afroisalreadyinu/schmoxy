@@ -1,3 +1,4 @@
+BeautifulSoup==3.2.1
 Flask==0.10.1
 Jinja2==2.7.1
 MarkupSafe==0.18
@@ -7,6 +8,7 @@ bunch==1.0.1
 cssselect==0.8
 furl==0.3.5
 itsdangerous==0.23
+logfigure==0.01
 lxml==3.2.3
 mock==1.0.1
 ordereddict==1.1

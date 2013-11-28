@@ -218,6 +218,5 @@ class ReplaceContentTests(unittest.TestCase):
         self.failUnless(new_element in new_doc)
 
 
-
 if __name__ == "__main__":
     unittest.main()

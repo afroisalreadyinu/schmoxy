@@ -31,9 +31,11 @@ def replace_references(page_text, source_url, urls_dict, server_name, excluded_j
 
     soup = BeautifulSoup(page_text)
     for img in soup.find_all('img'):
+        if not img.has_key('src'): continue
         img['src'] = local_to_remote(furl(img['src']), source_url,
                                      server_name, urls_dict)
-    for css in [x for x in soup.find_all('link') if x['rel'] == ['stylesheet']]:
+    for css in [x for x in soup.find_all('link') if x['rel'] == ['stylesheet']
+                and x.has_key('href')]:
         css['href'] = local_to_remote(furl(css['href']), source_url,
                                       server_name, urls_dict)
     for script in soup.find_all('script'):
@@ -44,6 +46,15 @@ def replace_references(page_text, source_url, urls_dict, server_name, excluded_j
     for script in [x for x in soup.find_all('script') if x.has_attr('src')]:
         script['src'] = local_to_remote(furl(script['src']), source_url,
                                         server_name, urls_dict)
+
+
+    for link in soup.find_all('a'):
+        if not (link.has_key('href')
+                and link['href'].startswith(source_url.url)):
+            continue
+        link['href'] = local_to_remote(furl(link['href']), source_url,
+                                       server_name, urls_dict)
+
     return unicode(soup)
 
 def replace_content(content, replacement_list):
