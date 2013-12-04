@@ -4,6 +4,8 @@ import base64
 import json
 import codecs
 
+import requests
+
 from flask import (Flask, g,
                    abort,
                    render_template,
@@ -12,7 +14,7 @@ from flask import (Flask, g,
                    make_response)
 import requests
 from schmoxy.util import BiDict
-from schmoxy.doc_processor import replace_references, replace_content
+from schmoxy.doc_processor import replace_references, replace_content, add_css
 
 app = Flask('adana',
             static_url_path='/justdontservethosefilesreallynoiseriuouslklajsdlkymeanit')
@@ -67,7 +69,7 @@ class ResourceCache(object):
             headers, page_content = self.read_file(os.path.join(self.cache_dir,
                                                                 filename))
         except IOError:
-            page = requests.get(url)
+            page = requests.get(url.strip())
             if page.status_code > 400:
                 with open(os.path.join(self.cache_dir, filename), 'w') as out_file:
                     out_file.write(str(page.status_code))
