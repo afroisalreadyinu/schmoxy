@@ -64,3 +64,9 @@ def replace_content(content, replacement_list):
         new_tag = BeautifulSoup(new_content)
         element[0].replace_with(new_tag.body.next)
     return unicode(soup)
+
+def add_css(content, css_url):
+    soup = BeautifulSoup(content)
+    newtag = soup.new_tag("link", href=css_url, rel="stylesheet", type="text/css")
+    soup.head.append(newtag)
+    return unicode(soup)
